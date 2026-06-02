@@ -1,0 +1,626 @@
+{
+  "info": {
+    "name": "MicroFin Auth Service",
+    "_postman_id": "8a7c1f60-1a2b-4d3e-9c4f-microfin-auth-001",
+    "description": "Postman collection for the MicroFin Auth Service.\n\nCovers:\n- Custom REST APIs (`/api/v1/auth/**`, `/api/v1/admin/**`)\n- Health/actuator\n- OAuth2 Authorization Server endpoints (`/oauth2/**`, `/.well-known/**`, `/userinfo`)\n\n### How to use\n1. Pick the **Local** environment (or import the env block at the bottom of this collection).\n2. Run `Auth API > Register` (or skip if user exists).\n3. Run `Auth API > Login` — the test script auto-saves `accessToken` and `refreshToken` to environment variables.\n4. Subsequent requests reuse `{{accessToken}}` automatically via the collection-level Bearer auth.\n\nBuilt for Spring Boot 4.0.6 + Spring Authorization Server 7.0.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8086" },
+    { "key": "username", "value": "alice" },
+    { "key": "email", "value": "alice@microfin.com" },
+    { "key": "password", "value": "Secret#123" },
+    { "key": "adminUsername", "value": "admin" },
+    { "key": "adminPassword", "value": "Admin@123" },
+    { "key": "oauthClientId", "value": "microfin-client" },
+    { "key": "oauthClientSecret", "value": "microfin-secret" },
+    { "key": "oauthRedirectUri", "value": "http://localhost:3000/login/oauth2/code/microfin" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "oauthAccessToken", "value": "" },
+    { "key": "oauthRefreshToken", "value": "" },
+    { "key": "authorizationCode", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Auth API",
+      "description": "First-party authentication endpoints exposed by `AuthController`.",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"X\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Creates a new local user with `ROLE_USER`. Returns 201 with the persisted user (no password)."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.accessToken).to.be.a('string');",
+                  "pm.expect(json.refreshToken).to.be.a('string');",
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "console.log('Saved accessToken / refreshToken to collection variables');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Username (or email) + password → `AuthResponse { tokenType, accessToken, refreshToken, expiresInSeconds, user }`. Test script saves tokens to collection variables."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "console.log('Rotated tokens saved');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Rotates refresh token. Old refresh token is revoked; new access + refresh tokens are issued."
+          }
+        },
+        {
+          "name": "Me (current user)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Requires a valid Bearer access token. Returns the authenticated `UserResponse`."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            },
+            "description": "Revokes the supplied refresh token. Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. HTTP Basic Auth",
+      "description": "Demonstrates HTTP Basic authentication directly against secured endpoints (no JWT).",
+      "item": [
+        {
+          "name": "Me (Basic)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{username}}", "type": "string" },
+                { "key": "password", "value": "{{password}}", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Same endpoint, but authenticating with HTTP Basic instead of Bearer JWT.\n\nNote: When using Basic auth, the controller principal is a Spring Security UserDetails (not a Jwt), so the controller's `@AuthenticationPrincipal Jwt` may need adjustment for this path. Use this primarily for `curl`-style testing."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Admin API",
+      "description": "Endpoints in `AdminController` - require `ROLE_ADMIN`.",
+      "item": [
+        {
+          "name": "List Users (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "users"]
+            },
+            "description": "Returns all users. Caller must hold `ROLE_ADMIN` (login first as the admin user)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Health & Actuator",
+      "item": [
+        {
+          "name": "Custom Health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Actuator Health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+        {
+          "name": "Actuator Info",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/info",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "info"]
+            }
+          }
+        },
+        {
+          "name": "Actuator Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "metrics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. OAuth2 Authorization Server",
+      "description": "Standard OAuth2 / OIDC endpoints auto-exposed by Spring Authorization Server.",
+      "item": [
+        {
+          "name": "Discovery - OAuth2 Metadata",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/.well-known/oauth-authorization-server",
+              "host": ["{{baseUrl}}"],
+              "path": [".well-known", "oauth-authorization-server"]
+            }
+          }
+        },
+        {
+          "name": "Discovery - OIDC Configuration",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/.well-known/openid-configuration",
+              "host": ["{{baseUrl}}"],
+              "path": [".well-known", "openid-configuration"]
+            }
+          }
+        },
+        {
+          "name": "JWKS (public keys)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/oauth2/jwks",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth2", "jwks"]
+            }
+          }
+        },
+        {
+          "name": "Authorize (browser flow)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/oauth2/authorize?response_type=code&client_id={{oauthClientId}}&redirect_uri={{oauthRedirectUri}}&scope=openid%20profile%20read",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth2", "authorize"],
+              "query": [
+                { "key": "response_type", "value": "code" },
+                { "key": "client_id", "value": "{{oauthClientId}}" },
+                { "key": "redirect_uri", "value": "{{oauthRedirectUri}}" },
+                { "key": "scope", "value": "openid profile read" }
+              ]
+            },
+            "description": "Open this in a browser. After login + consent, AS redirects to `redirect_uri?code=...`. Copy the `code` value into `{{authorizationCode}}` and run `Token (authorization_code)`."
+          }
+        },
+        {
+          "name": "Token (client_credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('oauthAccessToken', json.access_token);",
+                  "if (json.refresh_token) pm.collectionVariables.set('oauthRefreshToken', json.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{oauthClientId}}", "type": "string" },
+                { "key": "password", "value": "{{oauthClientSecret}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials" },
+                { "key": "scope", "value": "read" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/oauth2/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Service-to-service token. Returns a signed JWT access token (no user context)."
+          }
+        },
+        {
+          "name": "Token (authorization_code)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('oauthAccessToken', json.access_token);",
+                  "pm.collectionVariables.set('oauthRefreshToken', json.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{oauthClientId}}", "type": "string" },
+                { "key": "password", "value": "{{oauthClientSecret}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "authorization_code" },
+                { "key": "code", "value": "{{authorizationCode}}" },
+                { "key": "redirect_uri", "value": "{{oauthRedirectUri}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/oauth2/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Exchange an `authorization_code` for tokens. Set `{{authorizationCode}}` first (from the `Authorize` redirect)."
+          }
+        },
+        {
+          "name": "Token (refresh_token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('oauthAccessToken', json.access_token);",
+                  "if (json.refresh_token) pm.collectionVariables.set('oauthRefreshToken', json.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{oauthClientId}}", "type": "string" },
+                { "key": "password", "value": "{{oauthClientSecret}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "refresh_token" },
+                { "key": "refresh_token", "value": "{{oauthRefreshToken}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/oauth2/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth2", "token"]
+            }
+          }
+        },
+        {
+          "name": "Introspect",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{oauthClientId}}", "type": "string" },
+                { "key": "password", "value": "{{oauthClientSecret}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{oauthAccessToken}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/oauth2/introspect",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth2", "introspect"]
+            },
+            "description": "RFC 7662 token introspection."
+          }
+        },
+        {
+          "name": "Revoke",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{oauthClientId}}", "type": "string" },
+                { "key": "password", "value": "{{oauthClientSecret}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{oauthAccessToken}}" },
+                { "key": "token_type_hint", "value": "access_token" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/oauth2/revoke",
+              "host": ["{{baseUrl}}"],
+              "path": ["oauth2", "revoke"]
+            },
+            "description": "RFC 7009 token revocation."
+          }
+        },
+        {
+          "name": "UserInfo (OIDC)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                { "key": "token", "value": "{{oauthAccessToken}}", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/userinfo",
+              "host": ["{{baseUrl}}"],
+              "path": ["userinfo"]
+            },
+            "description": "OIDC UserInfo endpoint. Token must contain `openid` scope."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Negative / Edge cases",
+      "item": [
+        {
+          "name": "Login - bad credentials",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"wrong-password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Expected: 401 Unauthorized."
+          }
+        },
+        {
+          "name": "Register - validation error",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"\",\n  \"email\": \"not-an-email\",\n  \"password\": \"123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Expected: 400 Bad Request with field-level errors from `GlobalExceptionHandler`."
+          }
+        },
+        {
+          "name": "Me - no token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Expected: 401 Unauthorized."
+          }
+        },
+        {
+          "name": "Admin - non-admin token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "users"]
+            },
+            "description": "Login as a non-admin user first. Expected: 403 Forbidden."
+          }
+        },
+        {
+          "name": "Refresh - revoked token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"deadbeef-not-a-real-token\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Expected: 401 Unauthorized — `Refresh token not found` / `invalid or expired`."
+          }
+        }
+      ]
+    }
+  ]
+}

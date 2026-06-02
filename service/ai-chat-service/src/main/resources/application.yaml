@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: ai-chat-service
+
+server:
+  port: 8087

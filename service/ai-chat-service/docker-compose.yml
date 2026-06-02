@@ -1,0 +1,10 @@
+name: finpilot-services
+
+services:
+  ai-chat-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-chat-service
+    ports:
+      - "8087:8087"

@@ -1,0 +1,102 @@
+name: finpilot-services
+
+x-java-service-build: &java-service-build
+  dockerfile: ../docker/Dockerfile
+
+services:
+  discovery-service:
+    build:
+      <<: *java-service-build
+      context: ../discovery-service
+    container_name: discovery-service
+    ports:
+      - "8761:8761"
+    networks:
+      - finpilot-net
+
+  api-gateway-service:
+    build:
+      <<: *java-service-build
+      context: ../api-gateway-service
+    container_name: api-gateway-service
+    ports:
+      - "8080:8080"
+    networks:
+      - finpilot-net
+
+  auth-service:
+    build:
+      <<: *java-service-build
+      context: ../auth-service
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+    networks:
+      - finpilot-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8086/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  user-service:
+    build:
+      <<: *java-service-build
+      context: ../user-service
+    container_name: user-service
+    ports:
+      - "8082:8082"
+    networks:
+      - finpilot-net
+
+  expense-service:
+    build:
+      <<: *java-service-build
+      context: ../expense-service
+    container_name: expense-service
+    ports:
+      - "8083:8083"
+    networks:
+      - finpilot-net
+
+  portfolio-service:
+    build:
+      <<: *java-service-build
+      context: ../portfolio-service
+    container_name: portfolio-service
+    ports:
+      - "8084:8084"
+    networks:
+      - finpilot-net
+
+  ai-chat-service:
+    build:
+      <<: *java-service-build
+      context: ../ai-chat-service
+    container_name: ai-chat-service
+    ports:
+      - "8087:8087"
+    networks:
+      - finpilot-net
+
+  recommendation-service:
+    build:
+      <<: *java-service-build
+      context: ../recommendation-service
+    container_name: recommendation-service
+    ports:
+      - "8088:8088"
+    networks:
+      - finpilot-net
+
+# Reuse the network created by infra/docker-compose.yml.
+# Start infra first:
+#   docker compose -f infra/docker-compose.yml up -d
+networks:
+  finpilot-net:
+    name: finpilot-net
+    external: true

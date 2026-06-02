@@ -1,0 +1,10 @@
+name: finpilot-services
+
+services:
+  portfolio-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: portfolio-service
+    ports:
+      - "8084:8084"

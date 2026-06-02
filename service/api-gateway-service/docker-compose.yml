@@ -1,0 +1,10 @@
+name: finpilot-services
+
+services:
+  api-gateway-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-gateway-service
+    ports:
+      - "8080:8080"

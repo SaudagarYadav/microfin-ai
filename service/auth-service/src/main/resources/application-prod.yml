@@ -1,0 +1,53 @@
+server:
+  port: 8086
+
+spring:
+  datasource:
+    url: jdbc:postgresql://prod-postgres.microfin.internal:5432/microfin_auth
+    username: microfin_auth_prod
+    password: microfin_auth_prod_pwd
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    show-sql: false
+  security:
+    oauth2:
+      authorization-server:
+        client:
+          microfin-client:
+            registration:
+              client-id: microfin-client
+              client-secret: "{noop}microfin-secret-prod"
+              client-authentication-methods:
+                - client_secret_basic
+              authorization-grant-types:
+                - authorization_code
+                - refresh_token
+                - client_credentials
+              redirect-uris:
+                - "https://app.microfin.com/login/oauth2/code/microfin"
+              post-logout-redirect-uris:
+                - "https://app.microfin.com/"
+              scopes:
+                - openid
+                - profile
+                - read
+                - write
+            require-authorization-consent: true
+            token:
+              access-token-time-to-live: 15m
+              refresh-token-time-to-live: 30d
+              reuse-refresh-tokens: false
+
+app:
+  security:
+    jwt:
+      issuer: microfin-auth-service
+      access-token-ttl-minutes: 15
+      refresh-token-ttl-days: 30
+    cors:
+      allowed-origins: https://app.microfin.com
+
+logging:
+  level:
+    root: WARN
+    com.microfin.auth: INFO

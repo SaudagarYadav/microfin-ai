@@ -1,0 +1,10 @@
+name: finpilot-services
+
+services:
+  recommendation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: recommendation-service
+    ports:
+      - "8088:8088"

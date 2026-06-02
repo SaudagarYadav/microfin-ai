@@ -1,0 +1,10 @@
+name: finpilot-services
+
+services:
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "8082:8082"
