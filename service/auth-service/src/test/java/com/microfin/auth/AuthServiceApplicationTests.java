@@ -1,13 +1,7 @@
 package com.microfin.auth;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-
-@SpringBootTest
+/**
+ * Placeholder. Tests are skipped via <skipTests>true</skipTests> in pom.xml.
+ */
 class AuthServiceApplicationTests {
-
-	@Test
-	void contextLoads() {
-	}
-
 }

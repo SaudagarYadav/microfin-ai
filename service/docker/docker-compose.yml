@@ -3,6 +3,16 @@ name: finpilot-services
 x-java-service-build: &java-service-build
   dockerfile: ../docker/Dockerfile
 
+# Eureka client base env shared by every service.
+# - SERVICEURL_DEFAULTZONE: container DNS name, reachable on the docker network.
+# - PREFER_IP_ADDRESS=false + HOSTNAME (per service) so other containers can
+#   resolve each other via service name (no IP-only registration).
+# Per-service overrides below set status / health / home URLs to localhost:<host-port>
+# so the Eureka dashboard links open correctly from the host browser.
+x-eureka-client-env: &eureka-client-env
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka
+  EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+
 services:
   discovery-service:
     build:
@@ -11,6 +21,12 @@ services:
     container_name: discovery-service
     ports:
       - "8761:8761"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka
+      EUREKA_INSTANCE_HOSTNAME: discovery-service
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:8761/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:8761/actuator/health
+      EUREKA_INSTANCE_HOME_PAGE_URL: http://localhost:8761/
     networks:
       - finpilot-net
 
@@ -19,6 +35,14 @@ services:
       <<: *java-service-build
       context: ../api-gateway-service
     container_name: api-gateway-service
+    depends_on:
+      - discovery-service
+    environment:
+      <<: *eureka-client-env
+      EUREKA_INSTANCE_HOSTNAME: api-gateway-service
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:8080/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:8080/actuator/health
+      EUREKA_INSTANCE_HOME_PAGE_URL: http://localhost:8080/
     ports:
       - "8080:8080"
     networks:
@@ -30,10 +54,19 @@ services:
       context: ../auth-service
     container_name: auth-service
     restart: unless-stopped
+    depends_on:
+      - discovery-service
     ports:
       - "8086:8086"
     environment:
-      SPRING_PROFILES_ACTIVE: local
+      <<: *eureka-client-env
+      EUREKA_INSTANCE_HOSTNAME: auth-service
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:8086/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:8086/actuator/health
+      EUREKA_INSTANCE_HOME_PAGE_URL: http://localhost:8086/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/microfin_auth
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
     networks:
       - finpilot-net
     healthcheck:
@@ -48,6 +81,14 @@ services:
       <<: *java-service-build
       context: ../user-service
     container_name: user-service
+    depends_on:
+      - discovery-service
+    environment:
+      <<: *eureka-client-env
+      EUREKA_INSTANCE_HOSTNAME: user-service
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:8082/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:8082/actuator/health
+      EUREKA_INSTANCE_HOME_PAGE_URL: http://localhost:8082/
     ports:
       - "8082:8082"
     networks:
@@ -58,6 +99,14 @@ services:
       <<: *java-service-build
       context: ../expense-service
     container_name: expense-service
+    depends_on:
+      - discovery-service
+    environment:
+      <<: *eureka-client-env
+      EUREKA_INSTANCE_HOSTNAME: expense-service
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:8083/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:8083/actuator/health
+      EUREKA_INSTANCE_HOME_PAGE_URL: http://localhost:8083/
     ports:
       - "8083:8083"
     networks:
@@ -68,6 +117,14 @@ services:
       <<: *java-service-build
       context: ../portfolio-service
     container_name: portfolio-service
+    depends_on:
+      - discovery-service
+    environment:
+      <<: *eureka-client-env
+      EUREKA_INSTANCE_HOSTNAME: portfolio-service
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:8084/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:8084/actuator/health
+      EUREKA_INSTANCE_HOME_PAGE_URL: http://localhost:8084/
     ports:
       - "8084:8084"
     networks:
@@ -78,6 +135,14 @@ services:
       <<: *java-service-build
       context: ../ai-chat-service
     container_name: ai-chat-service
+    depends_on:
+      - discovery-service
+    environment:
+      <<: *eureka-client-env
+      EUREKA_INSTANCE_HOSTNAME: ai-chat-service
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:8087/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:8087/actuator/health
+      EUREKA_INSTANCE_HOME_PAGE_URL: http://localhost:8087/
     ports:
       - "8087:8087"
     networks:
@@ -88,6 +153,14 @@ services:
       <<: *java-service-build
       context: ../recommendation-service
     container_name: recommendation-service
+    depends_on:
+      - discovery-service
+    environment:
+      <<: *eureka-client-env
+      EUREKA_INSTANCE_HOSTNAME: recommendation-service
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:8088/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:8088/actuator/health
+      EUREKA_INSTANCE_HOME_PAGE_URL: http://localhost:8088/
     ports:
       - "8088:8088"
     networks:

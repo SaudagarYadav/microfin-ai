@@ -1,10 +1,14 @@
 spring:
   application:
     name: auth-service
-  profiles:
-    active: local
+  datasource:
+    url: jdbc:postgresql://postgres:5432/microfin_auth
+    username: admin
+    password: admin
+    driver-class-name: org.postgresql.Driver
   jpa:
     open-in-view: false
+    show-sql: true
     hibernate:
       ddl-auto: validate
     properties:
@@ -12,8 +16,37 @@ spring:
         format_sql: false
         jdbc:
           time_zone: UTC
+  security:
+    oauth2:
+      authorization-server:
+        client:
+          microfin-client:
+            registration:
+              client-id: microfin-client
+              client-secret: "{noop}microfin-secret"
+              client-authentication-methods:
+                - client_secret_basic
+              authorization-grant-types:
+                - authorization_code
+                - refresh_token
+                - client_credentials
+              redirect-uris:
+                - "http://localhost:3000/login/oauth2/code/microfin"
+              post-logout-redirect-uris:
+                - "http://localhost:3000/"
+              scopes:
+                - openid
+                - profile
+                - read
+                - write
+            require-authorization-consent: true
+            token:
+              access-token-time-to-live: 15m
+              refresh-token-time-to-live: 30d
+              reuse-refresh-tokens: false
 
 server:
+  port: 8086
   error:
     include-message: always
     include-binding-errors: always
@@ -28,3 +61,35 @@ management:
       probes:
         enabled: true
       show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: 0.0.1-SNAPSHOT
+
+app:
+  security:
+    jwt:
+      issuer: microfin-auth-service
+      access-token-ttl-minutes: 15
+      refresh-token-ttl-days: 30
+    cors:
+      allowed-origins: http://localhost:3000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+logging:
+  level:
+    root: INFO
+    com.microfin.auth: DEBUG
+    org.springframework.security: DEBUG
